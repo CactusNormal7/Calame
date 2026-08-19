@@ -1,13 +1,16 @@
 export const MAP_W = 10;
 export const MAP_H = 8;
 
-export enum Terrain {
-  Grass,
-  Water,
-  Sand,
-}
+export const Terrain = {
+  Grass: 'grass',
+  Water: 'water',
+  Sand: 'sand',
+} as const;
+
+export type Terrain = (typeof Terrain)[keyof typeof Terrain];
 
 export interface FontainePoint {
+  tag: string;
   gx: number;
   gy: number;
   reserve: number;
@@ -15,8 +18,8 @@ export interface FontainePoint {
 
 export const terrain: Terrain[][] = [];
 export const fontaines: FontainePoint[] = [
-  { gx: 2, gy: 5, reserve: 999 },
-  { gx: 7, gy: 2, reserve: 999 },
+  { tag: 'f1', gx: 2, gy: 5, reserve: 999 },
+  { tag: 'f2', gx: 7, gy: 2, reserve: 999 },
 ];
 
 function isWater(gx: number, gy: number): boolean {
@@ -37,7 +40,13 @@ for (let gy = 0; gy < MAP_H; gy++) {
 }
 
 export function fontaineAt(gx: number, gy: number): FontainePoint | undefined {
-  return fontaines.find((f) => f.gx === gx && f.gy === gy);
+  const rgx = Math.round(gx);
+  const rgy = Math.round(gy);
+  return fontaines.find((f) => f.gx === rgx && f.gy === rgy);
+}
+
+export function fontaineByTag(tag: string): FontainePoint | undefined {
+  return fontaines.find((f) => f.tag === tag);
 }
 
 export function nearestFontaine(gx: number, gy: number): FontainePoint {

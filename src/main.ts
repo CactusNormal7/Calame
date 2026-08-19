@@ -5,7 +5,7 @@ import { units, buildings, createUnit, nextTag, findSpawnSpot, UNIT_KINDS } from
 import { state, gainInk, log } from './game/state.ts';
 import { initConsole, tickConsole } from './game/console.ts';
 import { setHelpHandler } from './game/commands.ts';
-import { openHelpPanel, tickUnitPanel } from './game/panels.ts';
+import { openHelpPanel, tickInfoPanel } from './game/panels.ts';
 
 const inkValueEl = document.querySelector<HTMLSpanElement>('#ink-value')!;
 const feedEl = document.querySelector<HTMLDivElement>('#feed')!;
@@ -72,7 +72,7 @@ function loop(now: number): void {
   updateCamera(dt);
   render(dt);
   updateHud();
-  tickUnitPanel();
+  tickInfoPanel();
   tickConsole();
 
   requestAnimationFrame(loop);

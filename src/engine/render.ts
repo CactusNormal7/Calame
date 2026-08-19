@@ -1,10 +1,10 @@
-import { gridToScreen, TILE_W, TILE_H } from './iso.ts';
-import { camera, initCamera } from './camera.ts';
+import { gridToScreen, screenToGrid, TILE_W, TILE_H } from './iso.ts';
+import { camera, initCamera, getOrigin } from './camera.ts';
 import { hashPhase } from './math.ts';
-import { terrain, fontaines, Terrain, MAP_W, MAP_H } from '../world/map.ts';
+import { terrain, fontaines, Terrain, MAP_W, MAP_H, inBounds } from '../world/map.ts';
 import { units, buildings, UNIT_KINDS, type Unit, type Building, type UnitShape } from '../game/entities.ts';
 import { isSelected } from '../game/selection.ts';
-import { openUnitPanel, closeUnitPanel } from '../game/panels.ts';
+import { openUnitInfoPanel, openBuildingInfoPanel, closeInfoPanel, closeAllPanels } from '../game/panels.ts';
 
 const canvas = document.querySelector<HTMLCanvasElement>('#scene')!;
 const ctx = canvas.getContext('2d')!;
@@ -55,7 +55,9 @@ function fitZoom(): number {
   return Math.min((window.innerWidth * 0.82) / mapPxW, (window.innerHeight * 0.82) / mapPxH);
 }
 
-initCamera(canvas, fitZoom(), handleCanvasClick);
+const hoverCoordEl = document.querySelector<HTMLDivElement>('#hover-coord')!;
+
+initCamera(canvas, fitZoom(), handleCanvasClick, closeAllPanels, handleCanvasMove);
 
 function unitAtScreen(sx: number, sy: number): Unit | undefined {
   const radius = UNIT_HIT_RADIUS * camera.zoom;
@@ -72,24 +74,41 @@ function unitAtScreen(sx: number, sy: number): Unit | undefined {
   return closest;
 }
 
+function buildingAtScreen(sx: number, sy: number): Building | undefined {
+  for (const b of buildings) {
+    const { x, y } = project(b.gx, b.gy);
+    const half = ((b.kind === 'caserne' ? 13 : 9) * camera.zoom) / 2 + 3;
+    if (Math.abs(sx - x) <= half && Math.abs(sy - y) <= half) return b;
+  }
+  return undefined;
+}
+
 function handleCanvasClick(sx: number, sy: number): void {
-  const hit = unitAtScreen(sx, sy);
-  if (hit) {
-    openUnitPanel(hit.tag, sx, sy);
+  const hitUnit = unitAtScreen(sx, sy);
+  if (hitUnit) {
+    openUnitInfoPanel(hitUnit.tag, sx, sy);
+    return;
+  }
+  const hitBuilding = buildingAtScreen(sx, sy);
+  if (hitBuilding) {
+    openBuildingInfoPanel(hitBuilding.tag, sx, sy);
+    return;
+  }
+  closeInfoPanel();
+}
+
+function handleCanvasMove(sx: number, sy: number): void {
+  const o = getOrigin();
+  const { gx, gy } = screenToGrid(sx, sy, o.x, o.y, camera.zoom);
+  if (inBounds(gx, gy)) {
+    hoverCoordEl.textContent = `case : ${gx}, ${gy}`;
   } else {
-    closeUnitPanel();
+    hoverCoordEl.textContent = 'case : —';
   }
 }
 
-function origin(): { x: number; y: number } {
-  return {
-    x: window.innerWidth / 2 + camera.panX,
-    y: window.innerHeight / 2 - ((MAP_H * TILE_H) / 4) * camera.zoom + camera.panY,
-  };
-}
-
 function project(gx: number, gy: number): { x: number; y: number } {
-  const o = origin();
+  const o = getOrigin();
   return gridToScreen(gx, gy, o.x, o.y, camera.zoom);
 }
 
@@ -185,6 +204,15 @@ function drawFontaine(tag: string, gx: number, gy: number): void {
 function drawBuilding(b: Building): void {
   const { x, y } = project(b.gx, b.gy);
   const size = (b.kind === 'caserne' ? 13 : 9) * camera.zoom;
+
+  if (isSelected(b.tag)) {
+    const selPhase = hashPhase(`${b.tag}:sel`);
+    const pulse = 0.5 + 0.5 * Math.sin((clock / SELECTION_PERIOD + selPhase) * Math.PI * 2);
+    const pad = 5 * camera.zoom;
+    ctx.strokeStyle = `rgba(255, 255, 255, ${0.35 + pulse * 0.5})`;
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(x - size / 2 - pad, y - size / 2 - pad, size + pad * 2, size + pad * 2);
+  }
 
   if (b.constructing) {
     ctx.strokeStyle = 'rgba(244, 244, 244, 0.5)';

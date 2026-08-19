@@ -5,6 +5,7 @@ import {
   nextTag,
   createBuilding,
   findBuildSpot,
+  isBuildableTile,
   buildings,
   UNIT_KINDS,
   BUILDING_KINDS,
@@ -15,10 +16,14 @@ import { fontaineAt } from '../world/map.ts';
 import { state, log, spendInk } from './state.ts';
 
 type Canonical = 'move' | 'harvest' | 'stop' | 'skip' | 'build' | 'produce';
+export type VerbCategory = 'movement' | 'economy' | 'construction' | 'production' | 'utility';
 
 export interface VerbDef {
   canonical: Canonical;
   tier: 'simple' | 'avance';
+  category: VerbCategory;
+  /** Description courte en anglais, utilisée par le panneau d'aide. */
+  desc: string;
   cost: number;
   waste: number;
   rateMul?: number;
@@ -26,21 +31,76 @@ export interface VerbDef {
 
 export const BASE_HARVEST_RATE = 1.4;
 const FAIL_WASTE_UNKNOWN = 2;
+/** Distance max (Manhattan) entre l'unité et des coordonnées de construction
+ * choisies explicitement — un chantier ne se lance pas à l'autre bout de la
+ * carte depuis un seul ouvrier. */
+export const BUILD_RANGE = 10;
 
 export const VERBS: Record<string, VerbDef> = {
-  va: { canonical: 'move', tier: 'simple', cost: 1, waste: 2 },
-  mine: { canonical: 'harvest', tier: 'simple', cost: 3, waste: 5, rateMul: 1 },
-  recolter: { canonical: 'harvest', tier: 'avance', cost: 5, waste: 8, rateMul: 1.7 },
-  stop: { canonical: 'stop', tier: 'simple', cost: 0, waste: 0 },
-  passer: { canonical: 'skip', tier: 'simple', cost: 2, waste: 0 },
-  construire: { canonical: 'build', tier: 'simple', cost: 0, waste: 4 },
-  creer: { canonical: 'produce', tier: 'simple', cost: 0, waste: 4 },
+  va: {
+    canonical: 'move',
+    tier: 'simple',
+    category: 'movement',
+    desc: 'Move to a target (fontaine, building, or unit tag).',
+    cost: 1,
+    waste: 2,
+  },
+  mine: {
+    canonical: 'harvest',
+    tier: 'simple',
+    category: 'economy',
+    desc: 'Start harvesting ink at the fontaine under the unit.',
+    cost: 3,
+    waste: 5,
+    rateMul: 1,
+  },
+  recolter: {
+    canonical: 'harvest',
+    tier: 'avance',
+    category: 'economy',
+    desc: 'Advanced harvest — higher yield, costs and wastes more.',
+    cost: 5,
+    waste: 8,
+    rateMul: 1.7,
+  },
+  stop: {
+    canonical: 'stop',
+    tier: 'simple',
+    category: 'utility',
+    desc: 'Cancel the current move or harvest.',
+    cost: 0,
+    waste: 0,
+  },
+  passer: {
+    canonical: 'skip',
+    tier: 'simple',
+    category: 'utility',
+    desc: 'Run the obvious default action without typing the exact word.',
+    cost: 2,
+    waste: 0,
+  },
+  construire: {
+    canonical: 'build',
+    tier: 'simple',
+    category: 'construction',
+    desc: 'Start building a structure. Optional exact tile: "<type> <gx> <gy>".',
+    cost: 0,
+    waste: 4,
+  },
+  creer: {
+    canonical: 'produce',
+    tier: 'simple',
+    category: 'production',
+    desc: 'Queue a unit for training at this building.',
+    cost: 0,
+    waste: 4,
+  },
 };
 
 export const VERBS_BY_UNIT: Record<UnitKind, string[]> = {
-  worker: ['va <cible>', 'mine', 'recolter', 'construire <type>', 'stop', 'passer'],
-  eclaireur: ['va <cible>', 'construire <type>', 'stop', 'passer'],
-  porteur: ['va <cible>', 'mine', 'recolter', 'construire <type>', 'stop', 'passer'],
+  worker: ['va <cible>', 'mine', 'recolter', 'construire <type> [gx gy]', 'stop', 'passer'],
+  eclaireur: ['va <cible>', 'construire <type> [gx gy]', 'stop', 'passer'],
+  porteur: ['va <cible>', 'mine', 'recolter', 'construire <type> [gx gy]', 'stop', 'passer'],
 };
 
 export const VERBS_BY_BUILDING: Record<BuildingKind, string[]> = {
@@ -70,6 +130,8 @@ export function submitCommand(raw: string): void {
   const tag = tokens[0].toLowerCase();
   const verbWord = tokens[1]?.toLowerCase();
   const argTag = tokens[2]?.toLowerCase();
+  const argGx = tokens[3];
+  const argGy = tokens[4];
 
   if (HELP_WORDS.has(tag)) {
     helpHandler?.();
@@ -177,11 +239,33 @@ export function submitCommand(raw: string): void {
           fail(`${tag} construire : type de bâtiment inconnu "${argTag ?? ''}"`, verb.waste);
           return;
         }
-        const spot = findBuildSpot(Math.round(unit.gx), Math.round(unit.gy));
-        if (!spot) {
-          fail(`${tag} construire : aucune case libre à proximité`, verb.waste);
-          return;
+
+        let spot: { gx: number; gy: number } | undefined;
+        if (argGx !== undefined || argGy !== undefined) {
+          const gx = Number(argGx);
+          const gy = Number(argGy);
+          if (!Number.isInteger(gx) || !Number.isInteger(gy)) {
+            fail(`${tag} construire : coordonnées invalides "${argGx ?? ''} ${argGy ?? ''}"`, verb.waste);
+            return;
+          }
+          const dist = Math.abs(gx - Math.round(unit.gx)) + Math.abs(gy - Math.round(unit.gy));
+          if (dist > BUILD_RANGE) {
+            fail(`${tag} construire : trop loin (max ${BUILD_RANGE} cases)`, verb.waste);
+            return;
+          }
+          if (!isBuildableTile(gx, gy)) {
+            fail(`${tag} construire : case (${gx}, ${gy}) inaccessible ou occupée`, verb.waste);
+            return;
+          }
+          spot = { gx, gy };
+        } else {
+          spot = findBuildSpot(Math.round(unit.gx), Math.round(unit.gy));
+          if (!spot) {
+            fail(`${tag} construire : aucune case libre à proximité`, verb.waste);
+            return;
+          }
         }
+
         if (state.ink < def.buildCost) {
           fail(`${tag} : pas assez d'encre pour construire`, 0);
           return;
@@ -189,7 +273,7 @@ export function submitCommand(raw: string): void {
         spendInk(def.buildCost);
         const newTag = nextTag(buildingType);
         buildings.push(createBuilding(newTag, buildingType, spot.gx, spot.gy, false));
-        log(`${tag} commence la construction de ${newTag} (${def.label})`, 'ok');
+        log(`${tag} commence la construction de ${newTag} (${def.label}) en ${spot.gx}, ${spot.gy}`, 'ok');
         break;
       }
       case 'produce':

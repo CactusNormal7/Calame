@@ -6,6 +6,8 @@ export type UnitShape = 'circle' | 'triangle' | 'square';
 
 export interface UnitKindDef {
   label: string;
+  /** Description courte en anglais, utilisée par le panneau d'aide. */
+  description: string;
   shape: UnitShape;
   speed: number;
   /** Multiplicateur de rendement de récolte ; 0 = ne peut pas récolter. */
@@ -16,20 +18,60 @@ export interface UnitKindDef {
 
 export interface BuildingKindDef {
   label: string;
+  description: string;
   buildCost: number;
   buildTime: number;
+  maxHp: number;
   produces: UnitKind[];
 }
 
 export const UNIT_KINDS: Record<UnitKind, UnitKindDef> = {
-  worker: { label: 'ouvrier', shape: 'circle', speed: 2.2, harvestMul: 1, buildCost: 4, buildTime: 4 },
-  eclaireur: { label: 'éclaireur', shape: 'triangle', speed: 3.6, harvestMul: 0, buildCost: 3, buildTime: 3 },
-  porteur: { label: 'porteur', shape: 'square', speed: 1.4, harvestMul: 1.8, buildCost: 6, buildTime: 6 },
+  worker: {
+    label: 'ouvrier',
+    description: 'All-round unit. Moves, harvests ink, and can start construction.',
+    shape: 'circle',
+    speed: 2.2,
+    harvestMul: 1,
+    buildCost: 4,
+    buildTime: 4,
+  },
+  eclaireur: {
+    label: 'éclaireur',
+    description: 'Fast scout. Cannot harvest, but reaches distant fontaines quickly.',
+    shape: 'triangle',
+    speed: 3.6,
+    harvestMul: 0,
+    buildCost: 3,
+    buildTime: 3,
+  },
+  porteur: {
+    label: 'porteur',
+    description: 'Slow hauler. Harvests ink at a much higher rate than a worker.',
+    shape: 'square',
+    speed: 1.4,
+    harvestMul: 1.8,
+    buildCost: 6,
+    buildTime: 6,
+  },
 };
 
 export const BUILDING_KINDS: Record<BuildingKind, BuildingKindDef> = {
-  qg: { label: 'qg', buildCost: 0, buildTime: 0, produces: [] },
-  caserne: { label: 'caserne', buildCost: 8, buildTime: 8, produces: ['worker', 'eclaireur', 'porteur'] },
+  qg: {
+    label: 'qg',
+    description: 'Home base. Cannot be commanded yet.',
+    buildCost: 0,
+    buildTime: 0,
+    maxHp: 120,
+    produces: [],
+  },
+  caserne: {
+    label: 'caserne',
+    description: 'Production building. Trains worker, eclaireur and porteur units.',
+    buildCost: 8,
+    buildTime: 8,
+    maxHp: 60,
+    produces: ['worker', 'eclaireur', 'porteur'],
+  },
 };
 
 export interface Unit {
@@ -59,6 +101,8 @@ export interface Building {
   buildProgress: number;
   buildTime: number;
   producing: BuildingProduction | null;
+  hp: number;
+  maxHp: number;
 }
 
 export interface Location {
@@ -82,7 +126,7 @@ export function createUnit(tag: string, kind: UnitKind, gx: number, gy: number):
 }
 
 export function createBuilding(tag: string, kind: BuildingKind, gx: number, gy: number, alreadyBuilt = true): Building {
-  const buildTime = BUILDING_KINDS[kind].buildTime;
+  const def = BUILDING_KINDS[kind];
   return {
     tag,
     kind,
@@ -90,8 +134,10 @@ export function createBuilding(tag: string, kind: BuildingKind, gx: number, gy: 
     gy,
     constructing: !alreadyBuilt,
     buildProgress: alreadyBuilt ? 1 : 0,
-    buildTime,
+    buildTime: def.buildTime,
     producing: null,
+    hp: def.maxHp,
+    maxHp: def.maxHp,
   };
 }
 
@@ -128,6 +174,13 @@ function tileFree(gx: number, gy: number): boolean {
   if (buildings.some((b) => b.gx === gx && b.gy === gy)) return false;
   if (units.some((u) => Math.round(u.gx) === gx && Math.round(u.gy) === gy)) return false;
   return true;
+}
+
+/** Case constructible : dans les limites, hors eau, et libre de tout
+ * bâtiment/fontaine/unité. Utilisé pour valider une position choisie
+ * explicitement par le joueur (commande "construire <type> <gx> <gy>"). */
+export function isBuildableTile(gx: number, gy: number): boolean {
+  return tileFree(gx, gy);
 }
 
 /** Cherche une case libre pour poser un nouveau bâtiment, en partant de

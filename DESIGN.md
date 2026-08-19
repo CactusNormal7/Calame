@@ -8,7 +8,10 @@ pour garder une DA cohérente. À mettre à jour à chaque choix visuel
 
 Noir/blanc/gris dominant, quelques touches de statut fonctionnelles
 (unité occupée, sélection) — pas de palette colorée décorative. Police
-monospace partout (`Courier New`, `Menlo`, fallback système).
+monospace partout (`Courier New`, `Menlo`, fallback système). Angles nets
+partout dans l'UI (`border-radius: 0` implicite — aucun rayon nulle part :
+HUD, feed, hint, console, panneaux flottants) : cohérent avec l'esprit
+terminal/ASCII, pas d'arrondi.
 
 ## Palette (carte — `src/engine/render.ts`)
 

@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>calame</title>
+  </head>
+  <body>
+    <div id="app">
+      <canvas id="scene"></canvas>
+
+      <div id="hud">
+        <div id="ink-counter">
+          <span class="hud-label">encre</span>
+          <span id="ink-value">0</span>
+        </div>
+        <div id="feed"></div>
+      </div>
+
+      <div id="hint-panel" class="hidden"></div>
+
+      <div id="console">
+        <span id="console-prefix">&gt;</span>
+        <span id="console-input"></span><span id="console-cursor">_</span>
+      </div>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

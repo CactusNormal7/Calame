@@ -9,11 +9,17 @@ export const camera = {
 const MIN_ZOOM = 0.4;
 const MAX_ZOOM = 2.2;
 const KEY_PAN_SPEED = 420; // px/s à zoom 1
+const CLICK_MOVE_THRESHOLD = 6; // px : au-delà, un mousedown+mouseup est un glissé, pas un clic
+
+export type ClickHandler = (screenX: number, screenY: number) => void;
 
 const heldKeys = new Set<string>();
 let dragging = false;
+let dragStartX = 0;
+let dragStartY = 0;
 let lastMouseX = 0;
 let lastMouseY = 0;
+let moved = 0;
 
 function zoomAt(mx: number, my: number, factor: number): void {
   const nextZoom = clamp(camera.zoom * factor, MIN_ZOOM, MAX_ZOOM);
@@ -23,7 +29,7 @@ function zoomAt(mx: number, my: number, factor: number): void {
   camera.zoom = nextZoom;
 }
 
-export function initCamera(canvas: HTMLCanvasElement, initialZoom: number): void {
+export function initCamera(canvas: HTMLCanvasElement, initialZoom: number, onClick?: ClickHandler): void {
   camera.zoom = clamp(initialZoom, MIN_ZOOM, MAX_ZOOM);
 
   window.addEventListener('keydown', (e) => {
@@ -48,14 +54,18 @@ export function initCamera(canvas: HTMLCanvasElement, initialZoom: number): void
   );
 
   canvas.addEventListener('mousedown', (e) => {
-    if (e.button === 2 || e.button === 1 || e.button === 0) {
-      dragging = true;
-      lastMouseX = e.clientX;
-      lastMouseY = e.clientY;
-      canvas.style.cursor = 'grabbing';
-    }
+    dragging = true;
+    moved = 0;
+    dragStartX = e.clientX;
+    dragStartY = e.clientY;
+    lastMouseX = e.clientX;
+    lastMouseY = e.clientY;
+    canvas.style.cursor = 'grabbing';
   });
-  window.addEventListener('mouseup', () => {
+  window.addEventListener('mouseup', (e) => {
+    if (dragging && e.button === 0 && moved < CLICK_MOVE_THRESHOLD) {
+      onClick?.(e.clientX, e.clientY);
+    }
     dragging = false;
     canvas.style.cursor = 'grab';
   });
@@ -65,6 +75,7 @@ export function initCamera(canvas: HTMLCanvasElement, initialZoom: number): void
     camera.panY += e.clientY - lastMouseY;
     lastMouseX = e.clientX;
     lastMouseY = e.clientY;
+    moved = Math.hypot(e.clientX - dragStartX, e.clientY - dragStartY);
   });
   canvas.addEventListener('contextmenu', (e) => e.preventDefault());
   canvas.style.cursor = 'grab';

@@ -2,7 +2,9 @@ import { gridToScreen, TILE_W, TILE_H } from './iso.ts';
 import { camera, initCamera } from './camera.ts';
 import { hashPhase } from './math.ts';
 import { terrain, fontaines, Terrain, MAP_W, MAP_H } from '../world/map.ts';
-import { units, buildings } from '../game/entities.ts';
+import { units, buildings, UNIT_KINDS, type Unit, type Building, type UnitShape } from '../game/entities.ts';
+import { isSelected } from '../game/selection.ts';
+import { openUnitPanel, closeUnitPanel } from '../game/panels.ts';
 
 const canvas = document.querySelector<HTMLCanvasElement>('#scene')!;
 const ctx = canvas.getContext('2d')!;
@@ -13,6 +15,8 @@ const TAG_FONT = "11px 'Courier New', Menlo, monospace";
 const WATER_PERIOD = 2.6;
 const FONTAINE_PERIOD = 3.4;
 const UNIT_PERIOD = 1.7;
+const SELECTION_PERIOD = 1.1;
+const UNIT_HIT_RADIUS = 14;
 
 const COLOR_BG = '#050505';
 const COLOR_GRASS = '#141414';
@@ -51,7 +55,31 @@ function fitZoom(): number {
   return Math.min((window.innerWidth * 0.82) / mapPxW, (window.innerHeight * 0.82) / mapPxH);
 }
 
-initCamera(canvas, fitZoom());
+initCamera(canvas, fitZoom(), handleCanvasClick);
+
+function unitAtScreen(sx: number, sy: number): Unit | undefined {
+  const radius = UNIT_HIT_RADIUS * camera.zoom;
+  let closest: Unit | undefined;
+  let closestD = radius;
+  for (const u of units) {
+    const { x, y } = project(u.gx, u.gy);
+    const d = Math.hypot(sx - x, sy - y);
+    if (d <= closestD) {
+      closest = u;
+      closestD = d;
+    }
+  }
+  return closest;
+}
+
+function handleCanvasClick(sx: number, sy: number): void {
+  const hit = unitAtScreen(sx, sy);
+  if (hit) {
+    openUnitPanel(hit.tag, sx, sy);
+  } else {
+    closeUnitPanel();
+  }
+}
 
 function origin(): { x: number; y: number } {
   return {
@@ -154,24 +182,77 @@ function drawFontaine(tag: string, gx: number, gy: number): void {
   drawTag(tag, gx, gy, 10 * camera.zoom);
 }
 
-function drawBuilding(tag: string, gx: number, gy: number): void {
-  const { x, y } = project(gx, gy);
-  const s = 9 * camera.zoom;
+function drawBuilding(b: Building): void {
+  const { x, y } = project(b.gx, b.gy);
+  const size = (b.kind === 'caserne' ? 13 : 9) * camera.zoom;
+
+  if (b.constructing) {
+    ctx.strokeStyle = 'rgba(244, 244, 244, 0.5)';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(x - size / 2, y - size / 2, size, size);
+    const fillH = size * b.buildProgress;
+    ctx.fillStyle = COLOR_BUILDING;
+    ctx.fillRect(x - size / 2, y + size / 2 - fillH, size, fillH);
+    drawTag(`${b.tag} (${Math.round(b.buildProgress * 100)}%)`, b.gx, b.gy, size / 2);
+    return;
+  }
+
   ctx.fillStyle = COLOR_BUILDING;
-  ctx.fillRect(x - s / 2, y - s / 2, s, s);
-  drawTag(tag, gx, gy, s / 2);
+  ctx.fillRect(x - size / 2, y - size / 2, size, size);
+  if (b.kind === 'caserne') {
+    const inner = size * 0.42;
+    ctx.fillStyle = COLOR_BG;
+    ctx.fillRect(x - inner / 2, y - inner / 2, inner, inner);
+  }
+
+  if (b.producing) {
+    const pct = b.producing.elapsed / b.producing.total;
+    ctx.beginPath();
+    ctx.arc(x, y, size * 0.85, -Math.PI / 2, -Math.PI / 2 + pct * Math.PI * 2);
+    ctx.strokeStyle = COLOR_UNIT_BUSY;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+  }
+
+  drawTag(b.tag, b.gx, b.gy, size / 2);
 }
 
-function drawUnit(tag: string, gx: number, gy: number, busy: boolean): void {
-  const phase = hashPhase(tag);
+function drawUnitShape(shape: UnitShape, x: number, y: number, r: number, fill: string): void {
+  ctx.fillStyle = fill;
+  if (shape === 'circle') {
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fill();
+  } else if (shape === 'square') {
+    ctx.fillRect(x - r, y - r, r * 2, r * 2);
+  } else {
+    ctx.beginPath();
+    ctx.moveTo(x, y - r);
+    ctx.lineTo(x + r, y + r);
+    ctx.lineTo(x - r, y + r);
+    ctx.closePath();
+    ctx.fill();
+  }
+}
+
+function drawUnit(u: Unit, busy: boolean): void {
+  const phase = hashPhase(u.tag);
   const bob = Math.sin((clock / UNIT_PERIOD + phase) * Math.PI * 2) * 2 * camera.zoom;
-  const { x, y } = project(gx, gy);
+  const { x, y } = project(u.gx, u.gy);
   const r = 4.5 * camera.zoom;
-  ctx.beginPath();
-  ctx.arc(x, y + bob, r, 0, Math.PI * 2);
-  ctx.fillStyle = busy ? COLOR_UNIT_BUSY : COLOR_UNIT;
-  ctx.fill();
-  drawTag(tag, gx, gy, r + Math.abs(bob));
+
+  if (isSelected(u.tag)) {
+    const selPhase = hashPhase(`${u.tag}:sel`);
+    const pulse = 0.5 + 0.5 * Math.sin((clock / SELECTION_PERIOD + selPhase) * Math.PI * 2);
+    ctx.beginPath();
+    ctx.arc(x, y + bob, r + 5 * camera.zoom, 0, Math.PI * 2);
+    ctx.strokeStyle = `rgba(255, 255, 255, ${0.35 + pulse * 0.5})`;
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+  }
+
+  drawUnitShape(UNIT_KINDS[u.kind].shape, x, y + bob, r, busy ? COLOR_UNIT_BUSY : COLOR_UNIT);
+  drawTag(u.tag, u.gx, u.gy, r + Math.abs(bob));
 }
 
 export function render(dt: number): void {
@@ -188,6 +269,6 @@ export function render(dt: number): void {
   drawBorder();
 
   for (const f of fontaines) drawFontaine(f.tag, f.gx, f.gy);
-  for (const b of buildings) drawBuilding(b.tag, b.gx, b.gy);
-  for (const u of units) drawUnit(u.tag, u.gx, u.gy, u.harvesting || u.moving);
+  for (const b of buildings) drawBuilding(b);
+  for (const u of units) drawUnit(u, u.harvesting || u.moving);
 }

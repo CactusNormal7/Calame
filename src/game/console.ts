@@ -1,15 +1,20 @@
-import { submitCommand, VERBS_BY_UNIT } from './commands.ts';
-import { unitByTag, units, buildings } from './entities.ts';
+import { submitCommand, VERBS_BY_UNIT, VERBS_BY_BUILDING } from './commands.ts';
+import { unitByTag, buildingByTag, units, buildings } from './entities.ts';
 import { fontaines } from '../world/map.ts';
+import { anyPanelOpen, closeAllPanels } from './panels.ts';
 
 const inputEl = document.querySelector<HTMLSpanElement>('#console-input')!;
 const hintEl = document.querySelector<HTMLDivElement>('#hint-panel')!;
 
 let buffer = '';
 
-const legendText = `unités : ${units.map((u) => u.tag).join(' ')}  ·  lieux : ${[...buildings, ...fontaines]
-  .map((e) => e.tag)
-  .join(' ')}  ·  tape "aide" pour l'aide`;
+/** Recalculée à chaque frappe plutôt que figée au chargement : de nouveaux
+ * bâtiments/unités apparaissent en cours de partie et doivent être listés. */
+function legendText(): string {
+  return `unités : ${units.map((u) => u.tag).join(' ')}  ·  lieux : ${[...buildings, ...fontaines]
+    .map((e) => e.tag)
+    .join(' ')}  ·  tape "aide" pour l'aide`;
+}
 
 function render(): void {
   inputEl.textContent = buffer;
@@ -18,9 +23,26 @@ function render(): void {
 
 function updateHint(): void {
   const firstToken = buffer.trim().split(/\s+/)[0];
-  const unit = firstToken ? unitByTag(firstToken.toLowerCase()) : undefined;
-  hintEl.textContent = unit ? VERBS_BY_UNIT[unit.kind]?.join('  ·  ') ?? '' : legendText;
+  const tag = firstToken?.toLowerCase();
+  const unit = tag ? unitByTag(tag) : undefined;
+  const building = !unit && tag ? buildingByTag(tag) : undefined;
+
+  if (unit) {
+    hintEl.textContent = VERBS_BY_UNIT[unit.kind]?.join('  ·  ') ?? '';
+  } else if (building) {
+    const verbs = VERBS_BY_BUILDING[building.kind];
+    hintEl.textContent = verbs.length > 0 ? verbs.join('  ·  ') : `${building.tag} : aucune commande`;
+  } else {
+    hintEl.textContent = legendText();
+  }
   hintEl.classList.remove('hidden');
+}
+
+/** Rafraîchit le hint/légende en continu (appelé depuis la boucle de jeu) :
+ * la liste des tags peut changer sans frappe (construction, production
+ * terminée), le hint-panel ne doit pas rester figé sur son dernier état. */
+export function tickConsole(): void {
+  updateHint();
 }
 
 export function initConsole(): void {
@@ -43,8 +65,12 @@ export function initConsole(): void {
     }
 
     if (e.key === 'Escape') {
-      buffer = '';
-      render();
+      if (anyPanelOpen()) {
+        closeAllPanels();
+      } else {
+        buffer = '';
+        render();
+      }
       e.preventDefault();
       return;
     }

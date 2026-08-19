@@ -57,17 +57,29 @@ synchronisation avec un autre — évite l'effet « stroboscope ».
 | Curseur console | 1 s (CSS) | binaire assumé, c'est un curseur texte |
 
 Panneaux flottants (info unité, aide) : animation d'ouverture par
-transition CSS `transform`/`opacity`, pas de keyframes — scale
-`0.9 → 1` + `opacity 0 → 1`, `180ms cubic-bezier(0.16, 1, 0.3, 1)` (courbe
-« snappy », dépassement léger perceptible). Fermeture : simple retrait de
-la classe `.open`, `120ms ease-out`.
+transition CSS de `clip-path` (pas de `scale`) — le panneau se révèle en
+rectangle depuis un point d'ouverture jusqu'au coin opposé, comme une
+sélection en glissé sur un bureau (on clique en un point, on « tire »
+jusqu'au coin inverse). `260ms linear` — volontairement linéaire, pas
+d'ease : une sélection en glissé avance à vitesse constante, pas en
+décélérant, sinon l'effet « rectangle qu'on tire » ne se lit pas — plus un
+fondu d'opacité en appoint (`120ms ease-out`). Fermeture : retrait de la classe
+`.open`, la transition rejoue à l'envers (le rectangle se referme vers son
+point d'ouverture).
 
-- Panneau d'info unité : origine de la mise à l'échelle = coin
-  supérieur-gauche du panneau (`transform-origin: 0 0`), positionné au
-  point de clic → effet « sort de la souris ».
-- Panneau d'aide : centré à l'écran, origine = centre
-  (`transform-origin: 50% 50%`) → effet « s'ouvre depuis le milieu »,
-  façon menu d'aide de type éditeur modal.
+- Panneau d'info unité : point d'ouverture = coin supérieur-gauche du
+  panneau, positionné au point de clic (`clip-path: inset(0 100% 100% 0)`
+  → `inset(0 0 0 0)`) → le rectangle grandit depuis la souris vers le coin
+  inférieur-droit.
+- Panneau d'aide : centré à l'écran, point d'ouverture = centre
+  (`clip-path: inset(50% 50% 50% 50%)` → `inset(0 0 0 0)`) → le rectangle
+  grandit depuis le milieu vers les 4 coins à la fois, façon menu d'aide de
+  type éditeur modal.
+
+*(Révision : la première version utilisait un `scale()` depuis le point
+d'origine — remplacé par une révélation `clip-path` en rectangle, qui
+correspond à l'intention initiale : une ouverture façon sélection en
+glissé, pas un simple agrandissement uniforme.)*
 
 ## Interaction souris
 

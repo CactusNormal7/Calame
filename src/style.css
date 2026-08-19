@@ -166,18 +166,22 @@ body {
   font-size: 12px;
   color: #e8e8e8;
   opacity: 0;
-  transform: scale(0.9);
-  transform-origin: 0 0;
+  /* Le point de clic est le coin (0,0) du panneau : la fenêtre se révèle en
+     rectangle depuis ce coin vers le coin opposé, comme une sélection en
+     glissé sur un bureau — pas un scale uniforme. */
+  clip-path: inset(0 100% 100% 0);
   transition:
-    transform 0.18s cubic-bezier(0.16, 1, 0.3, 1),
-    opacity 0.14s ease-out;
+    clip-path 0.26s linear,
+    opacity 0.12s ease-out;
 }
 
 .panel-center .panel-box {
   min-width: 320px;
   max-width: 420px;
-  transform: translate(-50%, -50%) scale(0.9);
-  transform-origin: center;
+  transform: translate(-50%, -50%);
+  /* Point d'ouverture = centre du panneau : le rectangle se révèle depuis
+     le milieu vers les 4 coins à la fois. */
+  clip-path: inset(50% 50% 50% 50%);
 }
 
 .panel.open {
@@ -186,11 +190,7 @@ body {
 
 .panel.open .panel-box {
   opacity: 1;
-  transform: scale(1);
-}
-
-.panel-center.open .panel-box {
-  transform: translate(-50%, -50%) scale(1);
+  clip-path: inset(0 0 0 0);
 }
 
 .panel-title {

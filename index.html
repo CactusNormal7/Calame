@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="fr">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
@@ -11,16 +11,19 @@
       <canvas id="scene"></canvas>
 
       <div id="hud">
-        <div id="ink-counter">
-          <span class="hud-label">encre</span>
-          <span id="ink-value">0</span>
+        <div id="hud-left">
+          <div id="ink-counter">
+            <span class="hud-label">ink</span>
+            <span id="ink-value">0</span>
+          </div>
+          <div id="hover-coord">tile: —</div>
         </div>
         <div id="feed"></div>
       </div>
 
       <div id="hint-panel" class="hidden"></div>
 
-      <div id="unit-panel" class="panel">
+      <div id="info-panel" class="panel">
         <div class="panel-box"></div>
       </div>
 

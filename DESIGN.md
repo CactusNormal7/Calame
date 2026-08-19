@@ -13,6 +13,35 @@ partout dans l'UI (`border-radius: 0` implicite — aucun rayon nulle part :
 HUD, feed, hint, console, panneaux flottants) : cohérent avec l'esprit
 terminal/ASCII, pas d'arrondi.
 
+## Langue
+
+Toute l'interface joueur est en anglais : mots-commandes (`go`, `mine`,
+`harvest`, `stop`, `skip`, `build`, `train`), identifiants de type
+(`worker`/`scout`/`hauler`, `hq`/`barracks`), messages du feed, contenu des
+panneaux (info unité/bâtiment, aide), légende/hint, HUD (`ink`, `tile: …`),
+`<html lang="en">`. Les commentaires de code restent en français (langue de
+travail interne, jamais vue par le joueur).
+
+*(Révision : une première passe s'était limitée au panneau d'aide en
+pensant que c'était la portée demandée — corrigé, "tout" voulait bien dire
+tout. Les mots-commandes historiques en français (`va`, `mine`, `recolter`,
+`construire`, `creer`, `passer`) ont été renommés en anglais à cette
+occasion : `go`, `mine`, `harvest`, `build`, `train`, `skip`.)*
+
+## Économie de l'encre
+
+Seule la **création** (construction de bâtiment, entraînement d'unité)
+consomme de l'encre au succès — `go`/`mine`/`harvest`/`stop`/`skip` ont un
+coût nul. Le gaspillage sur commande invalide (mauvais tag/mot, cible hors
+de portée, etc.) reste inchangé pour tous les verbes : c'est un mécanisme
+de sanction de la faute de frappe, pas un coût d'exécution, donc distinct
+de la question « est-ce que taper juste coûte quelque chose ».
+
+*(Révision : au tout début, `go`/`mine`/`harvest`/`skip` avaient un coût
+non nul — supprimé sur demande explicite : la frappe correcte ne doit pas
+appauvrir le joueur, seule la création de contenu (bâtiment, unité) doit
+avoir un prix.)*
+
 ## Palette (carte — `src/engine/render.ts`)
 
 | Rôle | Valeur | Usage |
@@ -38,9 +67,9 @@ carte au niveau de la teinte (occupé/libre) tout en distinguant les types :
 
 | Type | Forme | Trait de caractère |
 |---|---|---|
-| `worker` (ouvrier) | cercle | polyvalent, existant depuis le V0 |
-| `eclaireur` | triangle | rapide, ne récolte pas |
-| `porteur` | carré | lent, meilleur rendement de récolte |
+| `worker` | cercle | polyvalent, existant depuis le V0 |
+| `scout` | triangle | rapide, ne récolte pas |
+| `hauler` | carré | lent, meilleur rendement de récolte |
 
 ## Palette (UI — `src/style.css`)
 
@@ -106,12 +135,38 @@ glissé, pas un simple agrandissement uniforme.)*
 
 ## Interaction souris
 
-- Clic gauche court (< 6px de mouvement) sur une unité → sélection +
-  ouverture du panneau d'info au point de clic.
+- Clic gauche court (< 6px de mouvement) sur une unité **ou un bâtiment**
+  → sélection + ouverture du panneau d'info au point de clic (contenu
+  différent selon le type : état/cible pour une unité, PV/état de
+  construction ou production pour un bâtiment).
 - Clic gauche court sur une zone vide → désélection, fermeture du panneau.
-- Glisser (tout bouton, > 6px de mouvement) → pan caméra (existant).
-- Molette → zoom caméra (existant).
+- Glisser (tout bouton, > 6px de mouvement) → pan caméra. Le panneau
+  d'info reste ouvert et à sa position écran pendant un pan (il est
+  ancré en pixels, pas en coordonnées monde — un pan ne le déplace ni ne
+  le ferme).
+- Molette → zoom caméra, **toujours centré exactement sous le curseur**
+  (cf. Caméra ci-dessous), et ferme systématiquement tout panneau ouvert.
+  Zoomer change le cadrage de façon plus disruptive qu'un pan ; un
+  panneau resté à une position écran fixe après un zoom ne correspondrait
+  plus à rien de cohérent, donc autant le fermer plutôt que le laisser
+  raconter n'importe quoi.
+- Survol de la carte → lecture de la case sous le curseur affichée en
+  permanence dans le HUD (`#hover-coord`), pour rendre praticable la
+  construction à coordonnées explicites (`build <type> <gx> <gy>`).
 - Le seuil de 6px distingue un clic d'un début de glissé.
+
+## Caméra (`src/engine/camera.ts`)
+
+L'origine écran de la projection (`getOrigin()`) est calculée une seule
+fois dans `camera.ts` et réutilisée telle quelle par `render.ts` — avant,
+`render.ts` avait sa propre copie de la formule, légèrement différente de
+celle utilisée par le calcul de zoom, ce qui faisait dériver le point de
+pivot du zoom loin du curseur (surtout perceptible verticalement, à cause
+d'un terme de recentrage qui dépend du niveau de zoom). Le zoom calcule
+maintenant le point du monde sous le curseur *avant* de changer le niveau
+de zoom, puis ajuste le pan pour que ce même point reste exactement sous
+le curseur *après* — robuste à toute formule d'origine, pas seulement à
+un ratio simple sur pan.
 
 ## Historique des décisions
 
@@ -134,3 +189,31 @@ glissé, pas un simple agrandissement uniforme.)*
   frappe** : un bâtiment ou une unité peut apparaître pendant que le
   joueur ne tape rien (fin de construction/production) — le hint-panel ne
   doit pas rester figé sur son dernier état tapé.
+- **Panneau d'aide (`help`) classé par catégorie** (Units, Buildings,
+  Movement, Economy, Construction, Production, Utility), avec une
+  description par unité/bâtiment/commande. Toute l'UI est en anglais, cf.
+  section Langue ci-dessus.
+- **Titres de section (`.panel-section`) très marqués** : gras, blanc,
+  taille augmentée, bordure supérieure de séparation, marge généreuse —
+  la version précédente (gris terne, même taille que le texte courant) se
+  distinguait à peine du contenu et rendait un panneau dense (l'aide,
+  avec unités + bâtiments + 7 commandes détaillées) difficile à scanner
+  visuellement.
+- **`build` accepte des coordonnées explicites** (`<type> <gx> <gy>`), en
+  plus du placement automatique par défaut (case libre la plus proche de
+  l'unité) — portée limitée à `BUILD_RANGE` (10 cases) pour qu'un
+  chantier reste lié à la présence d'une unité dessus, pas téléportable
+  n'importe où sur la carte.
+- **Construire exige une présence physique** : une commande `build` ne
+  démarre plus le chantier instantanément — l'unité se déplace d'abord
+  jusqu'à la case cible (`Unit.pendingBuild`), le bâtiment n'apparaît
+  qu'à l'arrivée. Le coût est débité dès l'ordre donné (comme pour la
+  production), pas à l'arrivée, pour rester cohérent avec le reste de
+  l'économie (« payer à la commande, recevoir plus tard ») ; `go`/`stop`
+  annulent un chantier en attente (l'encre déjà dépensée n'est pas
+  remboursée — une redirection a un coût assumé, pas de retour arrière
+  gratuit).
+- **PV ajoutés aux bâtiments** (`hp`/`maxHp`, toujours au maximum pour
+  l'instant, aucun système de combat n'existe encore) — affichés dans le
+  panneau d'info, pose la base pour une future mécanique de destruction
+  sans simuler des dégâts qui n'ont pas de source.

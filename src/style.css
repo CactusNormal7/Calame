@@ -35,11 +35,26 @@ body {
   pointer-events: none;
 }
 
+#hud-left {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
 #ink-counter {
   background: rgba(8, 8, 10, 0.85);
   border: 1px solid #f4f4f4;
   padding: 8px 14px;
   font-size: 15px;
+}
+
+#hover-coord {
+  background: rgba(8, 8, 10, 0.85);
+  border: 1px solid #3a3a3a;
+  padding: 4px 14px;
+  font-size: 11px;
+  color: #7a7a7a;
+  align-self: flex-start;
 }
 
 .hud-label {
@@ -171,7 +186,9 @@ body {
 
 .panel-center .panel-box {
   min-width: 320px;
-  max-width: 420px;
+  max-width: 440px;
+  max-height: 80vh;
+  overflow-y: auto;
   transform: translate(-50%, -50%);
   /* Point d'ouverture = centre du panneau : le rectangle se révèle depuis
      le milieu vers les 4 coins à la fois. */
@@ -205,7 +222,7 @@ body {
 
 .panel-row .k {
   display: inline-block;
-  width: 70px;
+  width: 88px;
   color: #ffffff;
 }
 
@@ -215,6 +232,12 @@ body {
   color: #7a7a7a;
 }
 
+.panel-desc {
+  color: #7a7a7a;
+  font-size: 10.5px;
+  padding: 0 0 4px 4px;
+}
+
 .panel-hint {
   margin-top: 6px;
   color: #7a7a7a;
@@ -222,10 +245,19 @@ body {
 }
 
 .panel-section {
-  margin-top: 8px;
-  margin-bottom: 2px;
-  color: #8f8f8f;
-  font-size: 11px;
+  margin-top: 18px;
+  margin-bottom: 8px;
+  padding-top: 10px;
+  border-top: 1px solid #3a3a3a;
+  color: #ffffff;
+  font-weight: bold;
+  font-size: 13px;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.1em;
+}
+
+.panel-title + .panel-section {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
 }

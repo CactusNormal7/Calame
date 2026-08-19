@@ -1,11 +1,11 @@
 import './style.css';
 import { render } from './engine/render.ts';
 import { updateCamera } from './engine/camera.ts';
-import { units, buildings, createUnit, nextTag, findSpawnSpot, UNIT_KINDS } from './game/entities.ts';
+import { units, buildings, createUnit, createBuilding, nextTag, findSpawnSpot, UNIT_KINDS, BUILDING_KINDS } from './game/entities.ts';
 import { state, gainInk, log } from './game/state.ts';
 import { initConsole, tickConsole } from './game/console.ts';
 import { setHelpHandler } from './game/commands.ts';
-import { openHelpPanel, tickUnitPanel } from './game/panels.ts';
+import { openHelpPanel, tickInfoPanel } from './game/panels.ts';
 
 const inkValueEl = document.querySelector<HTMLSpanElement>('#ink-value')!;
 const feedEl = document.querySelector<HTMLDivElement>('#feed')!;
@@ -21,6 +21,14 @@ function updateUnits(dt: number): void {
         u.gx = u.targetGx;
         u.gy = u.targetGy;
         u.moving = false;
+
+        if (u.pendingBuild) {
+          const { kind, gx, gy } = u.pendingBuild;
+          u.pendingBuild = null;
+          const newTag = nextTag(kind);
+          buildings.push(createBuilding(newTag, kind, gx, gy, false));
+          log(`${u.tag} starts building ${newTag} (${BUILDING_KINDS[kind].label})`, 'ok');
+        }
       } else {
         u.gx += (dx / dist) * step;
         u.gy += (dy / dist) * step;
@@ -38,7 +46,7 @@ function updateBuildings(dt: number): void {
       b.buildProgress = Math.min(1, b.buildProgress + dt / b.buildTime);
       if (b.buildProgress >= 1) {
         b.constructing = false;
-        log(`${b.tag} est achevé`, 'ok');
+        log(`${b.tag} is complete`, 'ok');
       }
     }
     if (b.producing) {
@@ -48,7 +56,7 @@ function updateBuildings(dt: number): void {
         const newTag = nextTag(kind);
         const spot = findSpawnSpot(b.gx, b.gy);
         units.push(createUnit(newTag, kind, spot.gx, spot.gy));
-        log(`${b.tag} produit ${newTag} (${UNIT_KINDS[kind].label})`, 'ok');
+        log(`${b.tag} trains ${newTag} (${UNIT_KINDS[kind].label})`, 'ok');
         b.producing = null;
       }
     }
@@ -72,13 +80,13 @@ function loop(now: number): void {
   updateCamera(dt);
   render(dt);
   updateHud();
-  tickUnitPanel();
+  tickInfoPanel();
   tickConsole();
 
   requestAnimationFrame(loop);
 }
 
-log('bienvenue — tape un tag puis un mot, ex. "w1 va f1"', 'info');
+log('welcome — type a tag then a word, e.g. "w1 go f1"', 'info');
 setHelpHandler(openHelpPanel);
 initConsole();
 requestAnimationFrame(loop);

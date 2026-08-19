@@ -22,10 +22,25 @@ terminal/ASCII, pas d'arrondi.
 | Sable | `#232320` | anneau autour des points d'eau |
 | Eau (creux/pic) | `#3a3a3a` → `#e8e8e8` | vagues animées, mélange continu |
 | Bordure de carte | `#f4f4f4` | contour de la zone jouable |
-| Unité (repos) | `#ffffff` | cercle plein |
+| Unité (repos) | `#ffffff` | forme pleine, cf. vocabulaire de formes ci-dessous |
 | Unité (occupée) | `#ffd76a` | déplacement ou récolte en cours |
 | Sélection | `#ffffff` (anneau pulsé) | unité sélectionnée au clic |
+| Bâtiment | `#ffffff` (plein) | carré ; `caserne` = carré avec un carré évidé au centre (fond `#050505`), `qg` = carré plein simple |
+| Bâtiment (construction) | contour `rgba(244,244,244,0.5)` + remplissage `#ffffff` progressif | remplit du bas vers le haut selon l'avancement |
+| Anneau de production | `#ffd76a` | arc de progression autour d'un bâtiment qui produit une unité |
 | Tag (label) | `#9a9a9a` | texte au-dessus des entités |
+
+### Vocabulaire de formes (unités)
+
+Chaque type d'unité a une forme géométrique dédiée (`UNIT_KINDS[kind].shape`
+dans `game/entities.ts`), pas de nouvelle couleur — garde la lecture de
+carte au niveau de la teinte (occupé/libre) tout en distinguant les types :
+
+| Type | Forme | Trait de caractère |
+|---|---|---|
+| `worker` (ouvrier) | cercle | polyvalent, existant depuis le V0 |
+| `eclaireur` | triangle | rapide, ne récolte pas |
+| `porteur` | carré | lent, meilleur rendement de récolte |
 
 ## Palette (UI — `src/style.css`)
 
@@ -110,3 +125,12 @@ glissé, pas un simple agrandissement uniforme.)*
   de commandes est un contenu de référence consulté à la demande, pas un
   évènement de partie — elle ne doit pas polluer l'historique ni pousser
   les entrées précédentes hors de vue.
+- **Bâtiment placé sur une case adjacente libre, jamais sous l'unité qui
+  construit** : construire pile sur la case de l'unité faisait se
+  superposer les étiquettes des deux entités (illisible). `findBuildSpot`
+  essaie la case elle-même puis les 4 voisines directes (libres de tout
+  bâtiment, fontaine, unité, eau et hors-carte).
+- **Légende/hint rafraîchis en continu (`tickConsole`), pas seulement à la
+  frappe** : un bâtiment ou une unité peut apparaître pendant que le
+  joueur ne tape rien (fin de construction/production) — le hint-panel ne
+  doit pas rester figé sur son dernier état tapé.

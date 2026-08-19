@@ -50,12 +50,14 @@ export function tickUnitPanel(): void {
   if (unitPanelEl.classList.contains('open')) renderUnitPanelContent();
 }
 
+const VARIABLE_COST_VERBS = new Set(['construire', 'creer']);
+
 function renderHelpContent(): void {
   const verbRows = Object.entries(VERBS)
-    .map(
-      ([word, v]) =>
-        `<div class="panel-row"><span class="k">${word}</span><span class="tier">${v.tier}</span><span>coût ${v.cost}${v.waste > 0 ? ` · perte ${v.waste}` : ''}</span></div>`,
-    )
+    .map(([word, v]) => {
+      const cost = VARIABLE_COST_VERBS.has(word) ? 'coût variable selon la cible' : `coût ${v.cost}${v.waste > 0 ? ` · perte ${v.waste}` : ''}`;
+      return `<div class="panel-row"><span class="k">${word}</span><span class="tier">${v.tier}</span><span>${cost}</span></div>`;
+    })
     .join('');
   helpPanelBox.innerHTML = `
     <div class="panel-title">aide</div>

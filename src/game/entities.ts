@@ -1,16 +1,15 @@
 import { fontaines, terrain, Terrain, inBounds } from '../world/map.ts';
 
-export type UnitKind = 'worker' | 'eclaireur' | 'porteur';
-export type BuildingKind = 'qg' | 'caserne';
+export type UnitKind = 'worker' | 'scout' | 'hauler';
+export type BuildingKind = 'hq' | 'barracks';
 export type UnitShape = 'circle' | 'triangle' | 'square';
 
 export interface UnitKindDef {
   label: string;
-  /** Description courte en anglais, utilisée par le panneau d'aide. */
   description: string;
   shape: UnitShape;
   speed: number;
-  /** Multiplicateur de rendement de récolte ; 0 = ne peut pas récolter. */
+  /** Harvest rate multiplier; 0 = cannot harvest. */
   harvestMul: number;
   buildCost: number;
   buildTime: number;
@@ -27,7 +26,7 @@ export interface BuildingKindDef {
 
 export const UNIT_KINDS: Record<UnitKind, UnitKindDef> = {
   worker: {
-    label: 'ouvrier',
+    label: 'worker',
     description: 'All-round unit. Moves, harvests ink, and can start construction.',
     shape: 'circle',
     speed: 2.2,
@@ -35,17 +34,17 @@ export const UNIT_KINDS: Record<UnitKind, UnitKindDef> = {
     buildCost: 4,
     buildTime: 4,
   },
-  eclaireur: {
-    label: 'éclaireur',
-    description: 'Fast scout. Cannot harvest, but reaches distant fontaines quickly.',
+  scout: {
+    label: 'scout',
+    description: 'Fast scout. Cannot harvest, but reaches distant springs quickly.',
     shape: 'triangle',
     speed: 3.6,
     harvestMul: 0,
     buildCost: 3,
     buildTime: 3,
   },
-  porteur: {
-    label: 'porteur',
+  hauler: {
+    label: 'hauler',
     description: 'Slow hauler. Harvests ink at a much higher rate than a worker.',
     shape: 'square',
     speed: 1.4,
@@ -56,23 +55,29 @@ export const UNIT_KINDS: Record<UnitKind, UnitKindDef> = {
 };
 
 export const BUILDING_KINDS: Record<BuildingKind, BuildingKindDef> = {
-  qg: {
-    label: 'qg',
+  hq: {
+    label: 'hq',
     description: 'Home base. Cannot be commanded yet.',
     buildCost: 0,
     buildTime: 0,
     maxHp: 120,
     produces: [],
   },
-  caserne: {
-    label: 'caserne',
-    description: 'Production building. Trains worker, eclaireur and porteur units.',
+  barracks: {
+    label: 'barracks',
+    description: 'Production building. Trains worker, scout and hauler units.',
     buildCost: 8,
     buildTime: 8,
     maxHp: 60,
-    produces: ['worker', 'eclaireur', 'porteur'],
+    produces: ['worker', 'scout', 'hauler'],
   },
 };
+
+export interface PendingBuild {
+  kind: BuildingKind;
+  gx: number;
+  gy: number;
+}
 
 export interface Unit {
   tag: string;
@@ -84,6 +89,10 @@ export interface Unit {
   moving: boolean;
   harvesting: boolean;
   harvestRate: number;
+  /** Construction en attente : l'unité doit d'abord arriver sur place
+   * (elle est déjà en déplacement vers gx,gy) avant que le chantier ne
+   * démarre réellement — voir main.ts. */
+  pendingBuild: PendingBuild | null;
 }
 
 export interface BuildingProduction {
@@ -122,6 +131,7 @@ export function createUnit(tag: string, kind: UnitKind, gx: number, gy: number):
     moving: false,
     harvesting: false,
     harvestRate: 0,
+    pendingBuild: null,
   };
 }
 
@@ -141,12 +151,12 @@ export function createBuilding(tag: string, kind: BuildingKind, gx: number, gy: 
   };
 }
 
-export const buildings: Building[] = [createBuilding('qg', 'qg', 12, 10)];
+export const buildings: Building[] = [createBuilding('hq', 'hq', 12, 10)];
 
 export const units: Unit[] = [createUnit('w1', 'worker', 11, 10), createUnit('w2', 'worker', 13, 10)];
 
-const tagCounters: Record<string, number> = { worker: 2, eclaireur: 0, porteur: 0, caserne: 0 };
-const TAG_PREFIX: Record<string, string> = { worker: 'w', eclaireur: 'e', porteur: 'p', caserne: 'b' };
+const tagCounters: Record<string, number> = { worker: 2, scout: 0, hauler: 0, barracks: 0 };
+const TAG_PREFIX: Record<string, string> = { worker: 'w', scout: 's', hauler: 'h', barracks: 'b' };
 
 export function nextTag(kind: UnitKind | BuildingKind): string {
   tagCounters[kind] = (tagCounters[kind] ?? 0) + 1;
@@ -167,27 +177,29 @@ export function buildingAt(gx: number, gy: number): Building | undefined {
   return buildings.find((b) => b.gx === rgx && b.gy === rgy);
 }
 
-function tileFree(gx: number, gy: number): boolean {
+function tileFree(gx: number, gy: number, ignoreUnitTag?: string): boolean {
   if (!inBounds(gx, gy)) return false;
   if (terrain[gy][gx] === Terrain.Water) return false;
   if (fontaines.some((f) => f.gx === gx && f.gy === gy)) return false;
   if (buildings.some((b) => b.gx === gx && b.gy === gy)) return false;
-  if (units.some((u) => Math.round(u.gx) === gx && Math.round(u.gy) === gy)) return false;
+  if (units.some((u) => u.tag !== ignoreUnitTag && Math.round(u.gx) === gx && Math.round(u.gy) === gy)) return false;
   return true;
 }
 
 /** Case constructible : dans les limites, hors eau, et libre de tout
- * bâtiment/fontaine/unité. Utilisé pour valider une position choisie
- * explicitement par le joueur (commande "construire <type> <gx> <gy>"). */
-export function isBuildableTile(gx: number, gy: number): boolean {
-  return tileFree(gx, gy);
+ * bâtiment/fontaine/unité (l'unité qui construit elle-même ne compte pas
+ * comme un obstacle : elle est censée se tenir sur la case cible).
+ * Utilisé pour valider une position choisie explicitement par le joueur
+ * (commande "build <type> <gx> <gy>"). */
+export function isBuildableTile(gx: number, gy: number, actingUnitTag?: string): boolean {
+  return tileFree(gx, gy, actingUnitTag);
 }
 
 /** Cherche une case libre pour poser un nouveau bâtiment, en partant de
  * (gx,gy) puis en essayant les 4 voisines directes. `undefined` si aucune
  * n'est libre — évite qu'un bâtiment se superpose visuellement à l'unité
  * qui vient de le construire (étiquettes illisibles l'une sur l'autre). */
-export function findBuildSpot(gx: number, gy: number): { gx: number; gy: number } | undefined {
+export function findBuildSpot(gx: number, gy: number, actingUnitTag?: string): { gx: number; gy: number } | undefined {
   const candidates = [
     { gx, gy },
     { gx: gx + 1, gy },
@@ -195,7 +207,7 @@ export function findBuildSpot(gx: number, gy: number): { gx: number; gy: number 
     { gx, gy: gy + 1 },
     { gx, gy: gy - 1 },
   ];
-  return candidates.find((c) => tileFree(c.gx, c.gy));
+  return candidates.find((c) => tileFree(c.gx, c.gy, actingUnitTag));
 }
 
 /** Même logique pour faire apparaître une unité produite près de son

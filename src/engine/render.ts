@@ -77,7 +77,7 @@ function unitAtScreen(sx: number, sy: number): Unit | undefined {
 function buildingAtScreen(sx: number, sy: number): Building | undefined {
   for (const b of buildings) {
     const { x, y } = project(b.gx, b.gy);
-    const half = ((b.kind === 'caserne' ? 13 : 9) * camera.zoom) / 2 + 3;
+    const half = ((b.kind === 'barracks' ? 13 : 9) * camera.zoom) / 2 + 3;
     if (Math.abs(sx - x) <= half && Math.abs(sy - y) <= half) return b;
   }
   return undefined;
@@ -101,9 +101,9 @@ function handleCanvasMove(sx: number, sy: number): void {
   const o = getOrigin();
   const { gx, gy } = screenToGrid(sx, sy, o.x, o.y, camera.zoom);
   if (inBounds(gx, gy)) {
-    hoverCoordEl.textContent = `case : ${gx}, ${gy}`;
+    hoverCoordEl.textContent = `tile: ${gx}, ${gy}`;
   } else {
-    hoverCoordEl.textContent = 'case : —';
+    hoverCoordEl.textContent = 'tile: —';
   }
 }
 
@@ -203,7 +203,7 @@ function drawFontaine(tag: string, gx: number, gy: number): void {
 
 function drawBuilding(b: Building): void {
   const { x, y } = project(b.gx, b.gy);
-  const size = (b.kind === 'caserne' ? 13 : 9) * camera.zoom;
+  const size = (b.kind === 'barracks' ? 13 : 9) * camera.zoom;
 
   if (isSelected(b.tag)) {
     const selPhase = hashPhase(`${b.tag}:sel`);
@@ -227,7 +227,7 @@ function drawBuilding(b: Building): void {
 
   ctx.fillStyle = COLOR_BUILDING;
   ctx.fillRect(x - size / 2, y - size / 2, size, size);
-  if (b.kind === 'caserne') {
+  if (b.kind === 'barracks') {
     const inner = size * 0.42;
     ctx.fillStyle = COLOR_BG;
     ctx.fillRect(x - inner / 2, y - inner / 2, inner, inner);

@@ -11,9 +11,9 @@ let buffer = '';
 /** Recalculée à chaque frappe plutôt que figée au chargement : de nouveaux
  * bâtiments/unités apparaissent en cours de partie et doivent être listés. */
 function legendText(): string {
-  return `unités : ${units.map((u) => u.tag).join(' ')}  ·  lieux : ${[...buildings, ...fontaines]
+  return `units: ${units.map((u) => u.tag).join(' ')}  ·  places: ${[...buildings, ...fontaines]
     .map((e) => e.tag)
-    .join(' ')}  ·  tape "aide" pour l'aide`;
+    .join(' ')}  ·  type "help" for help`;
 }
 
 function render(): void {
@@ -31,7 +31,7 @@ function updateHint(): void {
     hintEl.textContent = VERBS_BY_UNIT[unit.kind]?.join('  ·  ') ?? '';
   } else if (building) {
     const verbs = VERBS_BY_BUILDING[building.kind];
-    hintEl.textContent = verbs.length > 0 ? verbs.join('  ·  ') : `${building.tag} : aucune commande`;
+    hintEl.textContent = verbs.length > 0 ? verbs.join('  ·  ') : `${building.tag}: no commands`;
   } else {
     hintEl.textContent = legendText();
   }

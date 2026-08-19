@@ -1,10 +1,15 @@
 import { submitCommand, VERBS_BY_UNIT } from './commands.ts';
-import { unitByTag } from './entities.ts';
+import { unitByTag, units, buildings } from './entities.ts';
+import { fontaines } from '../world/map.ts';
 
 const inputEl = document.querySelector<HTMLSpanElement>('#console-input')!;
 const hintEl = document.querySelector<HTMLDivElement>('#hint-panel')!;
 
 let buffer = '';
+
+const legendText = `unités : ${units.map((u) => u.tag).join(' ')}  ·  lieux : ${[...buildings, ...fontaines]
+  .map((e) => e.tag)
+  .join(' ')}  ·  tape "aide" pour l'aide`;
 
 function render(): void {
   inputEl.textContent = buffer;
@@ -14,12 +19,8 @@ function render(): void {
 function updateHint(): void {
   const firstToken = buffer.trim().split(/\s+/)[0];
   const unit = firstToken ? unitByTag(firstToken.toLowerCase()) : undefined;
-  if (unit) {
-    hintEl.textContent = VERBS_BY_UNIT[unit.kind]?.join('  ·  ') ?? '';
-    hintEl.classList.remove('hidden');
-  } else {
-    hintEl.classList.add('hidden');
-  }
+  hintEl.textContent = unit ? VERBS_BY_UNIT[unit.kind]?.join('  ·  ') ?? '' : legendText;
+  hintEl.classList.remove('hidden');
 }
 
 export function initConsole(): void {

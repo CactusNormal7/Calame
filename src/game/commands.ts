@@ -27,6 +27,8 @@ export const VERBS_BY_UNIT: Record<string, string[]> = {
   worker: ['va <cible>', 'mine', 'recolter', 'stop', 'passer'],
 };
 
+const HELP_WORDS = new Set(['aide', 'help', '?', '--help', '-h']);
+
 function fail(message: string, waste: number): void {
   spendInk(waste);
   log(`${message}${waste > 0 ? ` (-${waste} encre gaspillée)` : ''}`, 'error');
@@ -40,9 +42,18 @@ export function submitCommand(raw: string): void {
   const verbWord = tokens[1]?.toLowerCase();
   const argTag = tokens[2]?.toLowerCase();
 
+  if (HELP_WORDS.has(tag)) {
+    log(`unités : w1 w2 · mots : ${VERBS_BY_UNIT.worker.join(', ')}`, 'info');
+    return;
+  }
+
   const unit = unitByTag(tag);
   if (!unit) {
-    fail(`tag inconnu : "${tag}"`, FAIL_WASTE_UNKNOWN);
+    if (VERBS[tag]) {
+      fail(`"${tag}" est un mot d'action, pas un tag — ajoute d'abord l'unité, ex. "w1 ${tag}"`, FAIL_WASTE_UNKNOWN);
+    } else {
+      fail(`tag inconnu : "${tag}" (tape "aide" pour la liste)`, FAIL_WASTE_UNKNOWN);
+    }
     return;
   }
   if (!verbWord) {

@@ -6,10 +6,10 @@ html,
 body {
   margin: 0;
   height: 100%;
-  background: #06070a;
+  background: #050505;
   overflow: hidden;
   font-family: 'Courier New', Menlo, monospace;
-  color: #e0e4ee;
+  color: #e8e8e8;
 }
 
 #app {
@@ -36,15 +36,15 @@ body {
 }
 
 #ink-counter {
-  background: rgba(10, 12, 18, 0.75);
-  border: 1px solid #2a2f3d;
-  border-radius: 6px;
+  background: rgba(8, 8, 10, 0.85);
+  border: 1px solid #3a3a3a;
+  border-radius: 4px;
   padding: 8px 14px;
   font-size: 15px;
 }
 
 .hud-label {
-  color: #8f97a8;
+  color: #7a7a7a;
   margin-right: 8px;
   text-transform: uppercase;
   letter-spacing: 0.08em;
@@ -52,21 +52,21 @@ body {
 }
 
 #ink-value {
-  color: #a76bff;
+  color: #ffffff;
   font-weight: bold;
 }
 
 #feed {
-  background: rgba(10, 12, 18, 0.75);
-  border: 1px solid #2a2f3d;
-  border-radius: 6px;
+  background: rgba(8, 8, 10, 0.85);
+  border: 1px solid #3a3a3a;
+  border-radius: 4px;
   padding: 8px 14px;
   min-width: 260px;
   max-width: 360px;
   font-size: 12px;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 3px;
 }
 
 .feed-entry {
@@ -76,15 +76,19 @@ body {
 }
 
 .feed-ok {
-  color: #7ed6a5;
-}
-
-.feed-error {
-  color: #e0637a;
+  color: #e8e8e8;
 }
 
 .feed-info {
-  color: #8f97a8;
+  color: #7a7a7a;
+}
+
+.feed-error {
+  display: inline-block;
+  background: #e8e8e8;
+  color: #050505;
+  padding: 0 4px;
+  border-radius: 2px;
 }
 
 #hint-panel {
@@ -92,12 +96,12 @@ body {
   bottom: 64px;
   left: 50%;
   transform: translateX(-50%);
-  background: rgba(10, 12, 18, 0.85);
-  border: 1px solid #2a2f3d;
-  border-radius: 6px;
+  background: rgba(8, 8, 10, 0.85);
+  border: 1px solid #3a3a3a;
+  border-radius: 4px;
   padding: 6px 14px;
   font-size: 12px;
-  color: #8f97a8;
+  color: #7a7a7a;
 }
 
 #hint-panel.hidden {
@@ -109,9 +113,9 @@ body {
   bottom: 16px;
   left: 50%;
   transform: translateX(-50%);
-  background: rgba(10, 12, 18, 0.9);
-  border: 1px solid #3a3f52;
-  border-radius: 6px;
+  background: rgba(8, 8, 10, 0.9);
+  border: 1px solid #f4f4f4;
+  border-radius: 4px;
   padding: 10px 16px;
   font-size: 16px;
   min-width: 320px;
@@ -120,12 +124,13 @@ body {
 }
 
 #console-prefix {
-  color: #a76bff;
+  color: #ffffff;
+  font-weight: bold;
 }
 
 #console-cursor {
   animation: blink 1s steps(1) infinite;
-  color: #e0e4ee;
+  color: #e8e8e8;
 }
 
 @keyframes blink {
@@ -137,4 +142,96 @@ body {
   100% {
     opacity: 0;
   }
+}
+
+/* Panneaux flottants (info unité, aide) — voir DESIGN.md pour la spec d'animation */
+
+.panel {
+  position: fixed;
+  z-index: 30;
+  pointer-events: none;
+}
+
+.panel-center {
+  left: 50%;
+  top: 50%;
+}
+
+.panel-box {
+  background: rgba(8, 8, 10, 0.94);
+  border: 1px solid #3a3a3a;
+  border-radius: 4px;
+  padding: 12px 16px;
+  min-width: 200px;
+  font-size: 12px;
+  color: #e8e8e8;
+  opacity: 0;
+  transform: scale(0.9);
+  transform-origin: 0 0;
+  transition:
+    transform 0.18s cubic-bezier(0.16, 1, 0.3, 1),
+    opacity 0.14s ease-out;
+}
+
+.panel-center .panel-box {
+  min-width: 320px;
+  max-width: 420px;
+  transform: translate(-50%, -50%) scale(0.9);
+  transform-origin: center;
+}
+
+.panel.open {
+  pointer-events: auto;
+}
+
+.panel.open .panel-box {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.panel-center.open .panel-box {
+  transform: translate(-50%, -50%) scale(1);
+}
+
+.panel-title {
+  font-weight: bold;
+  color: #ffffff;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 11px;
+  border-bottom: 1px solid #3a3a3a;
+  padding-bottom: 6px;
+  margin-bottom: 6px;
+}
+
+.panel-row {
+  color: #cfcfcf;
+  padding: 2px 0;
+}
+
+.panel-row .k {
+  display: inline-block;
+  width: 70px;
+  color: #ffffff;
+}
+
+.panel-row .tier {
+  display: inline-block;
+  width: 60px;
+  color: #7a7a7a;
+}
+
+.panel-hint {
+  margin-top: 6px;
+  color: #7a7a7a;
+  font-size: 11px;
+}
+
+.panel-section {
+  margin-top: 8px;
+  margin-bottom: 2px;
+  color: #8f8f8f;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
 }

@@ -1,6 +1,7 @@
 import { submitCommand, VERBS_BY_UNIT } from './commands.ts';
 import { unitByTag, units, buildings } from './entities.ts';
 import { fontaines } from '../world/map.ts';
+import { anyPanelOpen, closeAllPanels } from './panels.ts';
 
 const inputEl = document.querySelector<HTMLSpanElement>('#console-input')!;
 const hintEl = document.querySelector<HTMLDivElement>('#hint-panel')!;
@@ -43,8 +44,12 @@ export function initConsole(): void {
     }
 
     if (e.key === 'Escape') {
-      buffer = '';
-      render();
+      if (anyPanelOpen()) {
+        closeAllPanels();
+      } else {
+        buffer = '';
+        render();
+      }
       e.preventDefault();
       return;
     }

@@ -2,7 +2,9 @@ import { gridToScreen, TILE_W, TILE_H } from './iso.ts';
 import { camera, initCamera } from './camera.ts';
 import { hashPhase } from './math.ts';
 import { terrain, fontaines, Terrain, MAP_W, MAP_H } from '../world/map.ts';
-import { units, buildings } from '../game/entities.ts';
+import { units, buildings, type Unit } from '../game/entities.ts';
+import { isSelected } from '../game/selection.ts';
+import { openUnitPanel, closeUnitPanel } from '../game/panels.ts';
 
 const canvas = document.querySelector<HTMLCanvasElement>('#scene')!;
 const ctx = canvas.getContext('2d')!;
@@ -13,6 +15,8 @@ const TAG_FONT = "11px 'Courier New', Menlo, monospace";
 const WATER_PERIOD = 2.6;
 const FONTAINE_PERIOD = 3.4;
 const UNIT_PERIOD = 1.7;
+const SELECTION_PERIOD = 1.1;
+const UNIT_HIT_RADIUS = 14;
 
 const COLOR_BG = '#050505';
 const COLOR_GRASS = '#141414';
@@ -51,7 +55,31 @@ function fitZoom(): number {
   return Math.min((window.innerWidth * 0.82) / mapPxW, (window.innerHeight * 0.82) / mapPxH);
 }
 
-initCamera(canvas, fitZoom());
+initCamera(canvas, fitZoom(), handleCanvasClick);
+
+function unitAtScreen(sx: number, sy: number): Unit | undefined {
+  const radius = UNIT_HIT_RADIUS * camera.zoom;
+  let closest: Unit | undefined;
+  let closestD = radius;
+  for (const u of units) {
+    const { x, y } = project(u.gx, u.gy);
+    const d = Math.hypot(sx - x, sy - y);
+    if (d <= closestD) {
+      closest = u;
+      closestD = d;
+    }
+  }
+  return closest;
+}
+
+function handleCanvasClick(sx: number, sy: number): void {
+  const hit = unitAtScreen(sx, sy);
+  if (hit) {
+    openUnitPanel(hit.tag, sx, sy);
+  } else {
+    closeUnitPanel();
+  }
+}
 
 function origin(): { x: number; y: number } {
   return {
@@ -167,6 +195,17 @@ function drawUnit(tag: string, gx: number, gy: number, busy: boolean): void {
   const bob = Math.sin((clock / UNIT_PERIOD + phase) * Math.PI * 2) * 2 * camera.zoom;
   const { x, y } = project(gx, gy);
   const r = 4.5 * camera.zoom;
+
+  if (isSelected(tag)) {
+    const selPhase = hashPhase(`${tag}:sel`);
+    const pulse = 0.5 + 0.5 * Math.sin((clock / SELECTION_PERIOD + selPhase) * Math.PI * 2);
+    ctx.beginPath();
+    ctx.arc(x, y + bob, r + 5 * camera.zoom, 0, Math.PI * 2);
+    ctx.strokeStyle = `rgba(255, 255, 255, ${0.35 + pulse * 0.5})`;
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+  }
+
   ctx.beginPath();
   ctx.arc(x, y + bob, r, 0, Math.PI * 2);
   ctx.fillStyle = busy ? COLOR_UNIT_BUSY : COLOR_UNIT;

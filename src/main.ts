@@ -4,6 +4,8 @@ import { updateCamera } from './engine/camera.ts';
 import { units, UNIT_SPEED } from './game/entities.ts';
 import { state, gainInk, log } from './game/state.ts';
 import { initConsole } from './game/console.ts';
+import { setHelpHandler } from './game/commands.ts';
+import { openHelpPanel, tickUnitPanel } from './game/panels.ts';
 
 const inkValueEl = document.querySelector<HTMLSpanElement>('#ink-value')!;
 const feedEl = document.querySelector<HTMLDivElement>('#feed')!;
@@ -46,10 +48,12 @@ function loop(now: number): void {
   updateCamera(dt);
   render(dt);
   updateHud();
+  tickUnitPanel();
 
   requestAnimationFrame(loop);
 }
 
 log('bienvenue — tape un tag puis un mot, ex. "w1 va f1"', 'info');
+setHelpHandler(openHelpPanel);
 initConsole();
 requestAnimationFrame(loop);

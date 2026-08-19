@@ -4,7 +4,7 @@ import { state, log, spendInk } from './state.ts';
 
 type Canonical = 'move' | 'harvest' | 'stop' | 'skip';
 
-interface VerbDef {
+export interface VerbDef {
   canonical: Canonical;
   tier: 'simple' | 'avance';
   cost: number;
@@ -29,6 +29,14 @@ export const VERBS_BY_UNIT: Record<string, string[]> = {
 
 const HELP_WORDS = new Set(['aide', 'help', '?', '--help', '-h']);
 
+let helpHandler: (() => void) | null = null;
+
+/** Enregistre le composant d'UI responsable d'afficher l'aide (voir game/panels.ts).
+ * Évite un import circulaire : ce module reste indépendant du DOM. */
+export function setHelpHandler(fn: () => void): void {
+  helpHandler = fn;
+}
+
 function fail(message: string, waste: number): void {
   spendInk(waste);
   log(`${message}${waste > 0 ? ` (-${waste} encre gaspillée)` : ''}`, 'error');
@@ -43,7 +51,7 @@ export function submitCommand(raw: string): void {
   const argTag = tokens[2]?.toLowerCase();
 
   if (HELP_WORDS.has(tag)) {
-    log(`unités : w1 w2 · mots : ${VERBS_BY_UNIT.worker.join(', ')}`, 'info');
+    helpHandler?.();
     return;
   }
 

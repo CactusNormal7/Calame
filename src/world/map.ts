@@ -1,5 +1,5 @@
-export const MAP_W = 10;
-export const MAP_H = 8;
+export const MAP_W = 26;
+export const MAP_H = 20;
 
 export const Terrain = {
   Grass: 'grass',
@@ -18,23 +18,24 @@ export interface FontainePoint {
 
 export const terrain: Terrain[][] = [];
 export const fontaines: FontainePoint[] = [
-  { tag: 'f1', gx: 2, gy: 5, reserve: 999 },
-  { tag: 'f2', gx: 7, gy: 2, reserve: 999 },
+  { tag: 'f1', gx: 4, gy: 15, reserve: 999 },
+  { tag: 'f2', gx: 21, gy: 4, reserve: 999 },
 ];
 
-function isWater(gx: number, gy: number): boolean {
-  // small lake shapes around each fontaine
+function nearestFontaineDist(gx: number, gy: number): number {
+  let best = Infinity;
   for (const f of fontaines) {
     const d = Math.abs(gx - f.gx) + Math.abs(gy - f.gy);
-    if (d <= 1) return true;
+    if (d < best) best = d;
   }
-  return false;
+  return best;
 }
 
 for (let gy = 0; gy < MAP_H; gy++) {
   const row: Terrain[] = [];
   for (let gx = 0; gx < MAP_W; gx++) {
-    row.push(isWater(gx, gy) ? Terrain.Water : Terrain.Grass);
+    const d = nearestFontaineDist(gx, gy);
+    row.push(d <= 1 ? Terrain.Water : d <= 2 ? Terrain.Sand : Terrain.Grass);
   }
   terrain.push(row);
 }

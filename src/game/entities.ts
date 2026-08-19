@@ -48,9 +48,9 @@ export function createBuilding(tag: string, gx: number, gy: number): Building {
   return { tag, kind: 'qg', gx, gy };
 }
 
-export const buildings: Building[] = [createBuilding('qg', 5, 6)];
+export const buildings: Building[] = [createBuilding('qg', 12, 10)];
 
-export const units: Unit[] = [createUnit('w1', 4, 6), createUnit('w2', 6, 6)];
+export const units: Unit[] = [createUnit('w1', 11, 10), createUnit('w2', 13, 10)];
 
 export function unitByTag(tag: string): Unit | undefined {
   return units.find((u) => u.tag === tag);

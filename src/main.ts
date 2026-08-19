@@ -1,5 +1,6 @@
 import './style.css';
 import { render } from './engine/render.ts';
+import { updateCamera } from './engine/camera.ts';
 import { units, UNIT_SPEED } from './game/entities.ts';
 import { state, gainInk, log } from './game/state.ts';
 import { initConsole } from './game/console.ts';
@@ -42,6 +43,7 @@ function loop(now: number): void {
   last = now;
 
   updateUnits(dt);
+  updateCamera(dt);
   render(dt);
   updateHud();
 

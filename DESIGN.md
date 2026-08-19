@@ -34,7 +34,7 @@ poids/inversion plutôt que par teinte :
 | Rôle | Valeur | Usage |
 |---|---|---|
 | Fond panneau | `rgba(8,8,10,0.92)` | HUD, console, panneaux flottants |
-| Bordure panneau | `#f4f4f4` / `#3a3a3a` (repos) | cohérente avec la bordure de carte |
+| Bordure panneau | `#f4f4f4` | tous les panneaux (HUD, console, hint, panneaux flottants) — blanc franc, cohérente avec la bordure de carte |
 | Texte primaire | `#e8e8e8` | contenu |
 | Texte secondaire | `#8f8f8f` | labels, hints |
 | Entrée feed « ok » | `#e8e8e8` | texte normal |
@@ -60,12 +60,17 @@ Panneaux flottants (info unité, aide) : animation d'ouverture par
 transition CSS de `clip-path` (pas de `scale`) — le panneau se révèle en
 rectangle depuis un point d'ouverture jusqu'au coin opposé, comme une
 sélection en glissé sur un bureau (on clique en un point, on « tire »
-jusqu'au coin inverse). `260ms linear` — volontairement linéaire, pas
-d'ease : une sélection en glissé avance à vitesse constante, pas en
-décélérant, sinon l'effet « rectangle qu'on tire » ne se lit pas — plus un
-fondu d'opacité en appoint (`120ms ease-out`). Fermeture : retrait de la classe
+jusqu'au coin inverse). `160ms cubic-bezier(0.33, 1, 0.68, 1)` (ease-out
+modéré — assez rapide pour ne pas traîner, mais pas linéaire : on garde une
+légère décélération en fin de course plutôt qu'un arrêt sec) + un fondu
+d'opacité en appoint (`100ms ease-out`). Fermeture : retrait de la classe
 `.open`, la transition rejoue à l'envers (le rectangle se referme vers son
 point d'ouverture).
+
+*(Révision 2 : la version précédente était en `260ms linear` — trop lente
+et l'absence totale d'easing rendait le mouvement mécanique. Accélérée à
+160ms avec un ease-out doux, qui reste perceptible comme un glissé sans
+être instantané comme le tout premier `scale()` à easing très prononcé.)*
 
 - Panneau d'info unité : point d'ouverture = coin supérieur-gauche du
   panneau, positionné au point de clic (`clip-path: inset(0 100% 100% 0)`
